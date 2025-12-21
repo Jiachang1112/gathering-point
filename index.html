@@ -13,6 +13,11 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        /* 讓 Modal 出現時有簡單的動畫 */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+        .animate-scaleUp { animation: scaleUp 0.2s ease-out; }
     </style>
 </head>
 <body class="bg-slate-100">
@@ -50,7 +55,6 @@
         window.db = db;
         window.auth = auth;
         window.appId = appId;
-        // 注意：這裡加入了 addDoc 以便寫入紀錄
         window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged };
 
         const container = document.getElementById('root');
@@ -64,8 +68,44 @@
             User: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"}), React.createElement("circle", {cx:"12", cy:"7", r:"4"})),
             LogOut: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"}), React.createElement("polyline", {points:"16 17 21 12 16 7"}), React.createElement("line", {x1:"21", y1:"12", x2:"9", y2:"12"})),
             Scan: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M3 7V5a2 2 0 0 1 2-2h2"}), React.createElement("path", {d:"M17 3h2a2 2 0 0 1 2 2v2"}), React.createElement("path", {d:"M21 17v2a2 2 0 0 1-2 2h-2"}), React.createElement("path", {d:"M7 21H5a2 2 0 0 1-2-2v-2"})),
-            Alert: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("circle", {cx:"12", cy:"12", r:"10"}), React.createElement("line", {x1:"12", y1:"8", x2:"12", y2:"12"}), React.createElement("line", {x1:"12", y1:"16", x2:"12.01", y2:"16"})),
+            Alert: ({size=24, className}) => React.createElement("svg", {width:size, height:size, className: className, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("circle", {cx:"12", cy:"12", r:"10"}), React.createElement("line", {x1:"12", y1:"8", x2:"12", y2:"12"}), React.createElement("line", {x1:"12", y1:"16", x2:"12.01", y2:"16"})),
         };
+
+        // ==========================================
+        // COMPONENTS
+        // ==========================================
+        
+        // ★★★ 新增：漂亮的確認視窗元件 ★★★
+        function ConfirmModal({ isOpen, title, message, onConfirm, onClose }) {
+            if (!isOpen) return null;
+            
+            return React.createElement("div", {className: "fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"},
+                // 遮罩背景
+                React.createElement("div", {className: "absolute inset-0 bg-black/50 backdrop-blur-[2px]", onClick: onClose}),
+                // 視窗本體
+                React.createElement("div", {className: "bg-white rounded-2xl w-full max-w-xs p-6 shadow-2xl relative z-10 animate-scaleUp flex flex-col items-center"},
+                    // 紅色圓形圖示
+                    React.createElement("div", {className: "w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4"},
+                        React.createElement(Icons.Alert, {size: 32, className: "text-red-500"})
+                    ),
+                    // 標題
+                    React.createElement("h3", {className: "text-xl font-bold text-gray-800 mb-2"}, title),
+                    // 訊息
+                    React.createElement("p", {className: "text-gray-500 text-center text-sm mb-6"}, message),
+                    // 按鈕群組
+                    React.createElement("div", {className: "flex w-full gap-3"},
+                        React.createElement("button", {
+                            onClick: onClose,
+                            className: "flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                        }, "取消"),
+                        React.createElement("button", {
+                            onClick: onConfirm,
+                            className: "flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-md hover:bg-red-600 transition-colors"
+                        }, "確定")
+                    )
+                )
+            );
+        }
 
         // ==========================================
         // APP LOGIC
@@ -316,7 +356,9 @@
 
         function RewardsTab({ user, userData, setErrorState }) {
             const [rewards, setRewards] = useState([]);
-            // 加入 addDoc
+            // 用來控制確認視窗的 State，存放要兌換的那個獎勵物件
+            const [selectedReward, setSelectedReward] = useState(null); 
+            
             const { collection, onSnapshot, updateDoc, doc, increment, addDoc } = window.firebaseModules;
 
             useEffect(() => {
@@ -328,8 +370,21 @@
                 return () => unsub();
             }, []);
 
-            const redeemReward = async (reward) => {
-                if (userData.points < reward.cost || !confirm(`兌換 ${reward.title}?`)) return;
+            // 觸發確認視窗
+            const handleRequestRedeem = (reward) => {
+                // 先簡單檢查點數夠不夠，不夠就不彈窗
+                if (userData.points < reward.cost) return;
+                setSelectedReward(reward);
+            };
+
+            // 真正的兌換邏輯 (按下確定後執行)
+            const handleConfirmRedeem = async () => {
+                if (!selectedReward) return;
+                const reward = selectedReward;
+                
+                // 關閉視窗
+                setSelectedReward(null);
+
                 const inc = increment(-reward.cost);
                 try {
                     // 1. 扣除點數
@@ -346,7 +401,8 @@
                         timestamp: new Date().toISOString()
                     });
 
-                    alert("兌換成功！");
+                    // 可選：可以跳一個小的成功提示，或者直接更新畫面就好
+                    // alert("兌換成功！"); 
                 } catch(e) { 
                     if (e.code === 'permission-denied') setErrorState('permission'); 
                     else alert("失敗"); 
@@ -355,6 +411,15 @@
 
             return (
                 React.createElement("div", {className: "p-6"},
+                    // ★★★ 渲染確認視窗 ★★★
+                    React.createElement(ConfirmModal, {
+                        isOpen: !!selectedReward,
+                        title: "確認兌換",
+                        message: selectedReward ? `確定要花費 ${selectedReward.cost} 點兌換「${selectedReward.title}」嗎？` : "",
+                        onClose: () => setSelectedReward(null),
+                        onConfirm: handleConfirmRedeem
+                    }),
+
                     React.createElement("h2", {className: "text-2xl font-bold mb-6"}, "獎勵兌換 🎁"),
                     React.createElement("div", {className: "grid grid-cols-2 gap-4"},
                         rewards.map(r => (
@@ -363,7 +428,12 @@
                                     React.createElement("div", {className: "text-4xl mb-2"}, r.icon),
                                     React.createElement("h3", {className: "font-bold"}, r.title)
                                 ),
-                                React.createElement("button", {onClick: () => redeemReward(r), disabled: userData.points < r.cost, className: `w-full py-2 rounded text-sm font-bold mt-2 ${userData.points >= r.cost ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}, `${r.cost} 點`)
+                                React.createElement("button", {
+                                    // 修改這裡：不再直接 redeemReward，而是呼叫 handleRequestRedeem
+                                    onClick: () => handleRequestRedeem(r), 
+                                    disabled: userData.points < r.cost, 
+                                    className: `w-full py-2 rounded text-sm font-bold mt-2 ${userData.points >= r.cost ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`
+                                }, `${r.cost} 點`)
                             )
                         ))
                     )
