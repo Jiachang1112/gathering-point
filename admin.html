@@ -21,7 +21,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        // ★★★ 修改 1: 加入 signOut ★★★
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const YOUR_FIREBASE_CONFIG = {
@@ -53,8 +54,8 @@
         window.db = db;
         window.auth = auth;
         window.appId = appId;
-        // 移除 orderBy，改用 query, where
-        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged, query, where };
+        // ★★★ 修改 2: 加入 signOut 到 modules ★★★
+        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged, query, where, signOut };
 
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
@@ -195,6 +196,7 @@
             );
         }
 
+        // ★★★ 修改 3: 修改 HomeTab 的登出邏輯 ★★★
         function HomeTab({ user, userData }) {
             const [members, setMembers] = useState([]);
             const [selectedMember, setSelectedMember] = useState(null);
@@ -209,6 +211,21 @@
                 return () => unsub();
             }, []);
 
+            // 新增：處理登出
+            const handleLogout = async () => {
+                if(confirm("確定要登出管理員嗎？")) {
+                    try {
+                        // 1. 先執行登出清除狀態
+                        await window.firebaseModules.signOut(window.auth);
+                        // 2. 再重新整理頁面
+                        window.location.reload();
+                    } catch (e) {
+                        console.error(e);
+                        window.location.reload();
+                    }
+                }
+            };
+
             if (selectedMember) {
                 return React.createElement(MemberDetail, { member: selectedMember, onBack: () => setSelectedMember(null) });
             }
@@ -220,7 +237,8 @@
                             React.createElement("h2", {className: "text-2xl font-bold text-gray-800"}, `你好，${userData.name} 👋`),
                             React.createElement("span", {className: "inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 bg-purple-100 text-purple-700"}, "👑 管理員")
                         ),
-                        React.createElement("button", {onClick: () => window.location.reload(), className: "p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"}, React.createElement(Icons.LogOut, {size: 20}))
+                        // 將原本的 window.location.reload() 改成 handleLogout
+                        React.createElement("button", {onClick: handleLogout, className: "p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"}, React.createElement(Icons.LogOut, {size: 20}))
                     ),
                     
                     React.createElement("h3", {className: "font-bold text-lg mb-4 text-gray-700 flex items-center gap-2"}, 
@@ -237,10 +255,8 @@
                             },
                                 React.createElement("div", {className: "w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-xl mb-2"}, "👤"),
                                 
-                                // ★★★ 修改這裡：名字 + (用戶) ★★★
                                 React.createElement("div", {className: "font-bold text-gray-800 flex items-center gap-1"}, 
                                     member.name,
-                                    // 邏輯：如果不是家長 (role !== 'parent')，就顯示 (用戶)
                                     member.role !== 'parent' 
                                         ? React.createElement("span", {className: "text-xs text-gray-400 font-normal"}, "(用戶)") 
                                         : null
@@ -258,15 +274,13 @@
             );
         }
 
-        // ★★★ 這裡做了關鍵修改，改用 JS 排序，解決看不到資料的問題 ★★★
+        // 其他功能維持不變
         function MemberDetail({ member, onBack }) {
             const [historyLogs, setHistoryLogs] = useState([]);
             const [memberChores, setMemberChores] = useState([]);
             const { collection, query, where, onSnapshot } = window.firebaseModules;
 
             useEffect(() => {
-                // 1. Fetch Logs (移除 orderBy，改用 JS 排序)
-                // 這樣就不會因為缺索引而報錯
                 const qLogs = query(
                     collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'),
                     where('userId', '==', member.uid)
@@ -274,12 +288,10 @@
                 
                 const unsubLogs = onSnapshot(qLogs, (snap) => {
                     const list = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                    // 在這裡進行排序 (新到舊)
                     list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                     setHistoryLogs(list);
                 }, (err) => console.log("Logs error:", err));
 
-                // 2. Fetch Chores (不變)
                 const unsubChores = onSnapshot(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'chores'), (snap) => {
                     const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
                     const related = all.filter(c => 
