@@ -236,7 +236,16 @@
                                 className: "bg-white p-4 rounded-xl shadow-sm border flex flex-col items-center cursor-pointer hover:bg-gray-50 transition active:scale-95"
                             },
                                 React.createElement("div", {className: "w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-xl mb-2"}, "👤"),
-                                React.createElement("div", {className: "font-bold text-gray-800"}, member.name),
+                                
+                                // ★★★ 修改這裡：名字 + (用戶) ★★★
+                                React.createElement("div", {className: "font-bold text-gray-800 flex items-center gap-1"}, 
+                                    member.name,
+                                    // 邏輯：如果不是家長 (role !== 'parent')，就顯示 (用戶)
+                                    member.role !== 'parent' 
+                                        ? React.createElement("span", {className: "text-xs text-gray-400 font-normal"}, "(用戶)") 
+                                        : null
+                                ),
+                                
                                 member.role === 'parent' && React.createElement("span", {className: "text-[10px] bg-purple-100 text-purple-600 px-2 rounded-full mb-1"}, "管理員"),
                                 React.createElement("div", {className: "text-2xl font-bold text-purple-600 mt-2"}, 
                                     member.points || 0,
