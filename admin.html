@@ -14,6 +14,8 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-100">
@@ -22,7 +24,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const YOUR_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA19wIYO4Bch2dZHEROIgHSU54AurJN5fE",
@@ -53,7 +55,7 @@
         window.db = db;
         window.auth = auth;
         window.appId = appId;
-        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged };
+        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged, query, where, orderBy };
 
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
@@ -69,6 +71,8 @@
             Trash2: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("polyline", {points:"3 6 5 6 21 6"}), React.createElement("path", {d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}), React.createElement("line", {x1:"10", y1:"11", x2:"10", y2:"17"}), React.createElement("line", {x1:"14", y1:"11", x2:"14", y2:"17"})),
             Scan: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M3 7V5a2 2 0 0 1 2-2h2"}), React.createElement("path", {d:"M17 3h2a2 2 0 0 1 2 2v2"}), React.createElement("path", {d:"M21 17v2a2 2 0 0 1-2 2h-2"}), React.createElement("path", {d:"M7 21H5a2 2 0 0 1-2-2v-2"})),
             Users: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"}), React.createElement("circle", {cx:"9", cy:"7", r:"4"}), React.createElement("path", {d:"M23 21v-2a4 4 0 0 0-3-3.87"}), React.createElement("path", {d:"M16 3.13a4 4 0 0 1 0 7.75"})),
+            ChevronLeft: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("polyline", {points:"15 18 9 12 15 6"})),
+            Clock: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("circle", {cx:"12", cy:"12", r:"10"}), React.createElement("polyline", {points:"12 6 12 12 16 14"})),
         };
 
         const { useState, useEffect } = React;
@@ -193,24 +197,26 @@
             );
         }
 
-        // ★★★ HomeTab 已經重寫：保留 Header 標籤，改為顯示成員列表 ★★★
         function HomeTab({ user, userData }) {
             const [members, setMembers] = useState([]);
+            const [selectedMember, setSelectedMember] = useState(null);
             const { collection, onSnapshot } = window.firebaseModules;
 
             useEffect(() => {
                  const unsub = onSnapshot(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'members'), (snap) => {
                     const list = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-                    // 根據點數排序 (多的在前面)
                     list.sort((a, b) => (b.points || 0) - (a.points || 0));
                     setMembers(list);
                 });
                 return () => unsub();
             }, []);
 
+            if (selectedMember) {
+                return React.createElement(MemberDetail, { member: selectedMember, onBack: () => setSelectedMember(null) });
+            }
+
             return (
                 React.createElement("div", {className: "p-6 flex flex-col pt-10"}, 
-                    // Header (完整保留您的要求)
                     React.createElement("div", {className: "w-full flex justify-between items-center mb-8"},
                         React.createElement("div", null,
                             React.createElement("h2", {className: "text-2xl font-bold text-gray-800"}, `你好，${userData.name} 👋`),
@@ -219,27 +225,102 @@
                         React.createElement("button", {onClick: () => window.location.reload(), className: "p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"}, React.createElement(Icons.LogOut, {size: 20}))
                     ),
                     
-                    // 新增：成員總覽
                     React.createElement("h3", {className: "font-bold text-lg mb-4 text-gray-700 flex items-center gap-2"}, 
                         React.createElement(Icons.Users, {size: 20, className: "text-purple-600"}),
                         "成員總覽"
                     ),
                     
-                    // 成員列表 Grid (網格排列)
                     React.createElement("div", {className: "grid grid-cols-2 gap-4 w-full"},
                         members.map(member => (
-                            React.createElement("div", {key: member.uid, className: "bg-white p-4 rounded-xl shadow-sm border flex flex-col items-center"},
-                                // 頭像 (暫用文字 placeholder)
+                            React.createElement("div", {
+                                key: member.uid, 
+                                onClick: () => setSelectedMember(member),
+                                className: "bg-white p-4 rounded-xl shadow-sm border flex flex-col items-center cursor-pointer hover:bg-gray-50 transition active:scale-95"
+                            },
                                 React.createElement("div", {className: "w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-xl mb-2"}, "👤"),
-                                // 名字
                                 React.createElement("div", {className: "font-bold text-gray-800"}, member.name),
-                                // 身分標籤 (如果是管理員也顯示一下)
                                 member.role === 'parent' && React.createElement("span", {className: "text-[10px] bg-purple-100 text-purple-600 px-2 rounded-full mb-1"}, "管理員"),
-                                // 點數
                                 React.createElement("div", {className: "text-2xl font-bold text-purple-600 mt-2"}, 
                                     member.points || 0,
                                     React.createElement("span", {className: "text-sm text-gray-400 ml-1"}, "pt")
                                 )
+                            )
+                        ))
+                    )
+                )
+            );
+        }
+
+        function MemberDetail({ member, onBack }) {
+            const [historyLogs, setHistoryLogs] = useState([]);
+            const [memberChores, setMemberChores] = useState([]);
+            const { collection, query, where, onSnapshot, orderBy } = window.firebaseModules;
+
+            useEffect(() => {
+                // Fetch Reward History (Logs)
+                const qLogs = query(
+                    collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'),
+                    where('userId', '==', member.uid),
+                    orderBy('timestamp', 'desc')
+                );
+                const unsubLogs = onSnapshot(qLogs, (snap) => {
+                    setHistoryLogs(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                }, (err) => console.log("Logs permission err (ok if new):", err));
+
+                // Fetch Chores related to this user
+                // Firestore filtering limitation: cannot do complex OR queries easily.
+                // We fetch all chores and filter in JS for simplicity in this family app scale.
+                const unsubChores = onSnapshot(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'chores'), (snap) => {
+                    const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    const related = all.filter(c => 
+                        (c.completedByUid === member.uid) || 
+                        (c.assignees && c.assignees.some(a => a.uid === member.uid))
+                    );
+                    // Sort: Completed last, Pending first
+                    related.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
+                    setMemberChores(related);
+                });
+
+                return () => { unsubLogs(); unsubChores(); };
+            }, [member.uid]);
+
+            return (
+                React.createElement("div", {className: "p-6 pt-10 min-h-screen bg-gray-50"},
+                    React.createElement("button", {onClick: onBack, className: "mb-4 flex items-center text-gray-600 font-bold"}, 
+                        React.createElement(Icons.ChevronLeft, {size: 20}), " 返回列表"
+                    ),
+                    React.createElement("div", {className: "bg-white p-6 rounded-2xl shadow-lg mb-6 flex flex-col items-center"},
+                        React.createElement("div", {className: "w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-3xl mb-3"}, "👤"),
+                        React.createElement("h2", {className: "text-2xl font-bold text-gray-800"}, member.name),
+                        React.createElement("div", {className: "text-4xl font-bold text-purple-600 mt-2"}, member.points, React.createElement("span", {className: "text-lg text-gray-400 ml-1"}, "pt"))
+                    ),
+
+                    React.createElement("h3", {className: "font-bold text-lg mb-3 text-gray-700"}, "🧹 家事紀錄"),
+                    memberChores.length === 0 ? React.createElement("p", {className: "text-gray-400 text-sm mb-6"}, "無相關家事") : 
+                    React.createElement("div", {className: "space-y-3 mb-8"},
+                        memberChores.map(c => (
+                            React.createElement("div", {key: c.id, className: `p-3 rounded-xl border flex justify-between items-center ${c.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`},
+                                React.createElement("div", null,
+                                    React.createElement("div", {className: `font-bold ${c.completed ? 'text-green-700' : 'text-gray-700'}`}, c.title),
+                                    React.createElement("div", {className: "text-xs text-gray-500"}, 
+                                        c.completed ? `完成者: ${c.completedBy}` : (c.assignees ? `指定給: ${c.assignees.map(a=>a.name).join(', ')}` : '未指定')
+                                    )
+                                ),
+                                c.completed && React.createElement("span", {className: "text-green-600 font-bold text-sm"}, `+${c.points}`)
+                            )
+                        ))
+                    ),
+
+                    React.createElement("h3", {className: "font-bold text-lg mb-3 text-gray-700"}, "🎁 獎勵兌換紀錄"),
+                    historyLogs.length === 0 ? React.createElement("p", {className: "text-gray-400 text-sm"}, "尚無兌換紀錄 (新功能啟用後顯示)") :
+                    React.createElement("div", {className: "space-y-3"},
+                        historyLogs.map(log => (
+                            React.createElement("div", {key: log.id, className: "bg-white p-3 rounded-xl border flex justify-between items-center"},
+                                React.createElement("div", null,
+                                    React.createElement("div", {className: "font-bold text-gray-800"}, log.itemName || "獎勵"),
+                                    React.createElement("div", {className: "text-xs text-gray-400"}, new Date(log.timestamp).toLocaleDateString())
+                                ),
+                                React.createElement("span", {className: "text-red-500 font-bold"}, `-${log.cost}`)
                             )
                         ))
                     )
@@ -351,7 +432,6 @@
             const addChore = async () => {
                 if (!newChore.trim()) return;
                 
-                // 處理多位指定人
                 let assigneesList = [];
                 if (selectedAssignees.size > 0) {
                     assigneesList = members
@@ -367,7 +447,7 @@
                         completedBy: null, 
                         completedByUid: null,
                         createdAt: new Date().toISOString(), 
-                        assignees: assigneesList // 存入陣列
+                        assignees: assigneesList 
                     });
                     setNewChore(''); 
                     setSelectedAssignees(new Set());
@@ -465,8 +545,21 @@
                 if (userData.points < reward.cost || !confirm(`測試兌換 ${reward.title}?`)) return;
                 const inc = increment(-reward.cost);
                 try {
+                    // 1. 扣點
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'members', user.uid), { points: inc });
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'users', user.uid, 'profile', 'info'), { points: inc });
+                    
+                    // 2. 新增：寫入兌換紀錄 (Log)
+                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'), {
+                        type: 'redemption',
+                        userId: user.uid,
+                        userName: userData.name,
+                        itemName: reward.title,
+                        cost: reward.cost,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    alert("兌換成功！");
                 } catch(e) { alert("失敗"); }
             };
 
