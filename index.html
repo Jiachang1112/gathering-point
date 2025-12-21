@@ -26,7 +26,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        // ★★★ 修改 1: 加入 query 和 where ★★★
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const YOUR_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA19wIYO4Bch2dZHEROIgHSU54AurJN5fE",
@@ -55,7 +56,8 @@
         window.db = db;
         window.auth = auth;
         window.appId = appId;
-        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged };
+        // ★★★ 修改 2: 將 query 和 where 加入全域模組 ★★★
+        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged, query, where };
 
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
@@ -63,13 +65,12 @@
 
         const Icons = {
             QrCode: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("rect", {x:"3", y:"3", width:"7", height:"7"}), React.createElement("rect", {x:"14", y:"3", width:"7", height:"7"}), React.createElement("rect", {x:"14", y:"14", width:"7", height:"7"}), React.createElement("rect", {x:"3", y:"14", width:"7", height:"7"})),
-            Gift: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("polyline", {points:"20 12 20 22 4 22 4 12"}), React.createElement("rect", {x:"2", y:"7", width:"20", height:"5"}), React.createElement("line", {x1:"12", y1:"22", x2:"12", y2:"7"}), React.createElement("path", {d:"M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"}), React.createElement("path", {d:"M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"})),
+            Gift: ({size=24, className}) => React.createElement("svg", {width:size, height:size, className:className, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("polyline", {points:"20 12 20 22 4 22 4 12"}), React.createElement("rect", {x:"2", y:"7", width:"20", height:"5"}), React.createElement("line", {x1:"12", y1:"22", x2:"12", y2:"7"}), React.createElement("path", {d:"M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"}), React.createElement("path", {d:"M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"})),
             CheckSquare: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("polyline", {points:"9 11 12 14 22 4"}), React.createElement("path", {d:"M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"})),
             User: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"}), React.createElement("circle", {cx:"12", cy:"7", r:"4"})),
             LogOut: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"}), React.createElement("polyline", {points:"16 17 21 12 16 7"}), React.createElement("line", {x1:"21", y1:"12", x2:"9", y2:"12"})),
-            Scan: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M3 7V5a2 2 0 0 1 2-2h2"}), React.createElement("path", {d:"M17 3h2a2 2 0 0 1 2 2v2"}), React.createElement("path", {d:"M21 17v2a2 2 0 0 1-2 2h-2"}), React.createElement("path", {d:"M7 21H5a2 2 0 0 1-2-2v-2"})),
+            Scan: ({size=24, className}) => React.createElement("svg", {width:size, height:size, className: className, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M3 7V5a2 2 0 0 1 2-2h2"}), React.createElement("path", {d:"M17 3h2a2 2 0 0 1 2 2v2"}), React.createElement("path", {d:"M21 17v2a2 2 0 0 1-2 2h-2"}), React.createElement("path", {d:"M7 21H5a2 2 0 0 1-2-2v-2"})),
             Alert: ({size=24, className}) => React.createElement("svg", {width:size, height:size, className: className, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("circle", {cx:"12", cy:"12", r:"10"}), React.createElement("line", {x1:"12", y1:"8", x2:"12", y2:"12"}), React.createElement("line", {x1:"12", y1:"16", x2:"12.01", y2:"16"})),
-            // 新增綠色勾勾圖示
             CheckCircle: ({size=24, className}) => React.createElement("svg", {width:size, height:size, className:className, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M22 11.08V12a10 10 0 1 1-5.93-9.14"}), React.createElement("polyline", {points:"22 4 12 14.01 9 11.01"})),
         };
 
@@ -80,7 +81,8 @@
         // 1. 確認視窗 (紅色警告風格)
         function ConfirmModal({ isOpen, title, message, onConfirm, onClose }) {
             if (!isOpen) return null;
-            return React.createElement("div", {className: "fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"},
+            // ★★★ 修改 3: z-50 改為 z-[100] ★★★
+            return React.createElement("div", {className: "fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn"},
                 React.createElement("div", {className: "absolute inset-0 bg-black/50 backdrop-blur-[2px]", onClick: onClose}),
                 React.createElement("div", {className: "bg-white rounded-2xl w-full max-w-xs p-6 shadow-2xl relative z-10 animate-scaleUp flex flex-col items-center"},
                     React.createElement("div", {className: "w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4"},
@@ -99,7 +101,8 @@
         // 2. 成功視窗 (綠色勾勾風格)
         function SuccessModal({ isOpen, onClose }) {
             if (!isOpen) return null;
-            return React.createElement("div", {className: "fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"},
+            // ★★★ 修改 4: z-50 改為 z-[100] ★★★
+            return React.createElement("div", {className: "fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn"},
                 React.createElement("div", {className: "absolute inset-0 bg-black/50 backdrop-blur-[2px]", onClick: onClose}),
                 React.createElement("div", {className: "bg-white rounded-2xl w-full max-w-xs p-6 shadow-2xl relative z-10 animate-scaleUp flex flex-col items-center"},
                     React.createElement("div", {className: "w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4"},
@@ -108,6 +111,58 @@
                     React.createElement("h3", {className: "text-xl font-bold text-gray-800 mb-2"}, "兌換成功！"),
                     React.createElement("p", {className: "text-gray-500 text-center text-sm mb-6"}, "獎勵已存入您的紀錄中"),
                     React.createElement("button", {onClick: onClose, className: "w-full py-3 bg-green-500 text-white font-bold rounded-xl shadow-md hover:bg-green-600 transition-colors"}, "太棒了")
+                )
+            );
+        }
+
+        // ★★★ 修改 5: 新增 HistoryModal 組件 ★★★
+        function HistoryModal({ isOpen, onClose, user }) {
+            if (!isOpen) return null;
+            const [logs, setLogs] = React.useState([]);
+            const { collection, onSnapshot, query, where } = window.firebaseModules;
+
+            React.useEffect(() => {
+                if(!user) return;
+                // 查詢：只找目前使用者的紀錄 (userId == user.uid)
+                const q = query(
+                    collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'),
+                    where('userId', '==', user.uid)
+                );
+                
+                const unsub = onSnapshot(q, (snap) => {
+                    let list = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    // 前端排序：新到舊
+                    list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    setLogs(list);
+                });
+                return () => unsub();
+            }, [user]);
+
+            return React.createElement("div", {className: "fixed inset-0 z-[100] flex items-end sm:items-center justify-center animate-fadeIn"},
+                // 背景遮罩
+                React.createElement("div", {className: "absolute inset-0 bg-black/50 backdrop-blur-[2px]", onClick: onClose}),
+                // 視窗本體 (手機版由下往上滑出的感覺)
+                React.createElement("div", {className: "bg-white w-full max-w-md h-[80vh] sm:h-[600px] sm:rounded-2xl rounded-t-2xl p-6 shadow-2xl relative z-10 animate-scaleUp flex flex-col"},
+                    React.createElement("div", {className: "flex justify-between items-center mb-6"},
+                        React.createElement("h3", {className: "text-xl font-bold text-gray-800 flex items-center gap-2"}, "📜 兌換紀錄"),
+                        React.createElement("button", {onClick: onClose, className: "w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200"}, "✕")
+                    ),
+                    React.createElement("div", {className: "flex-1 overflow-y-auto space-y-3 pr-1"},
+                        logs.length === 0 ? 
+                            React.createElement("div", {className: "flex flex-col items-center justify-center h-full text-gray-400"}, 
+                                React.createElement(Icons.Gift, {size: 48, className: "mb-2 opacity-20"}),
+                                "還沒有兌換過獎勵喔"
+                            ) :
+                            logs.map(log => (
+                                React.createElement("div", {key: log.id, className: "flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100"},
+                                    React.createElement("div", null,
+                                        React.createElement("div", {className: "font-bold text-gray-800"}, log.itemName || "獎勵兌換"),
+                                        React.createElement("div", {className: "text-xs text-gray-400 mt-1"}, new Date(log.timestamp).toLocaleString('zh-TW'))
+                                    ),
+                                    React.createElement("span", {className: "font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg text-sm"}, `-${log.cost}`)
+                                )
+                            ))
+                    )
                 )
             );
         }
@@ -340,10 +395,12 @@
             );
         }
 
+        // ★★★ 修改 6: 更新 RewardsTab，加入 HistoryModal 與紀錄按鈕 ★★★
         function RewardsTab({ user, userData, setErrorState }) {
             const [rewards, setRewards] = useState([]);
             const [selectedReward, setSelectedReward] = useState(null); 
-            const [showSuccess, setShowSuccess] = useState(false); // 控制成功視窗
+            const [showSuccess, setShowSuccess] = useState(false);
+            const [showHistory, setShowHistory] = useState(false); // 控制歷史紀錄視窗
             
             const { collection, onSnapshot, updateDoc, doc, increment, addDoc } = window.firebaseModules;
 
@@ -364,15 +421,13 @@
             const handleConfirmRedeem = async () => {
                 if (!selectedReward) return;
                 const reward = selectedReward;
-                setSelectedReward(null); // 關閉確認窗
+                setSelectedReward(null);
 
                 const inc = increment(-reward.cost);
                 try {
-                    // 1. 扣點
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'members', user.uid), { points: inc });
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'users', user.uid, 'profile', 'info'), { points: inc });
                     
-                    // 2. 寫入紀錄
                     await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'), {
                         type: 'redemption',
                         userId: user.uid,
@@ -382,7 +437,6 @@
                         timestamp: new Date().toISOString()
                     });
 
-                    // 3. 顯示成功動畫
                     setShowSuccess(true); 
                 } catch(e) { 
                     if (e.code === 'permission-denied') setErrorState('permission'); 
@@ -392,7 +446,7 @@
 
             return (
                 React.createElement("div", {className: "p-6"},
-                    // 確認視窗
+                    // 1. 確認視窗
                     React.createElement(ConfirmModal, {
                         isOpen: !!selectedReward,
                         title: "確認兌換",
@@ -401,24 +455,40 @@
                         onConfirm: handleConfirmRedeem
                     }),
 
-                    // 成功視窗
+                    // 2. 成功視窗
                     React.createElement(SuccessModal, {
                         isOpen: showSuccess,
                         onClose: () => setShowSuccess(false)
                     }),
 
-                    React.createElement("h2", {className: "text-2xl font-bold mb-6"}, "獎勵兌換 🎁"),
+                    // 3. 歷史紀錄視窗
+                    React.createElement(HistoryModal, {
+                        isOpen: showHistory,
+                        onClose: () => setShowHistory(false),
+                        user: user
+                    }),
+
+                    // 標題與紀錄按鈕
+                    React.createElement("div", {className: "flex justify-between items-center mb-6"},
+                        React.createElement("h2", {className: "text-2xl font-bold"}, "獎勵兌換 🎁"),
+                        React.createElement("button", {
+                            onClick: () => setShowHistory(true),
+                            className: "px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-full text-xs font-bold shadow-sm hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-1"
+                        }, "📜 紀錄")
+                    ),
+
+                    // 獎勵列表
                     React.createElement("div", {className: "grid grid-cols-2 gap-4"},
                         rewards.map(r => (
                             React.createElement("div", {key: r.id, className: "bg-white p-4 rounded-xl shadow-sm border flex flex-col justify-between h-40 relative"},
                                 React.createElement("div", {className: "text-center"},
                                     React.createElement("div", {className: "text-4xl mb-2"}, r.icon),
-                                    React.createElement("h3", {className: "font-bold"}, r.title)
+                                    React.createElement("h3", {className: "font-bold text-gray-800 line-clamp-2"}, r.title)
                                 ),
                                 React.createElement("button", {
                                     onClick: () => handleRequestRedeem(r), 
                                     disabled: userData.points < r.cost, 
-                                    className: `w-full py-2 rounded text-sm font-bold mt-2 ${userData.points >= r.cost ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`
+                                    className: `w-full py-2 rounded-lg text-sm font-bold mt-2 transition-colors ${userData.points >= r.cost ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-gray-100 text-gray-400'}`
                                 }, `${r.cost} 點`)
                             )
                         ))
