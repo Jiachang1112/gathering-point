@@ -21,7 +21,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const YOUR_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA19wIYO4Bch2dZHEROIgHSU54AurJN5fE",
@@ -50,7 +50,8 @@
         window.db = db;
         window.auth = auth;
         window.appId = appId;
-        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged };
+        // 注意：這裡加入了 addDoc 以便寫入紀錄
+        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged };
 
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
@@ -66,6 +67,9 @@
             Alert: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("circle", {cx:"12", cy:"12", r:"10"}), React.createElement("line", {x1:"12", y1:"8", x2:"12", y2:"12"}), React.createElement("line", {x1:"12", y1:"16", x2:"12.01", y2:"16"})),
         };
 
+        // ==========================================
+        // APP LOGIC
+        // ==========================================
         const { useState, useEffect } = React;
 
         function FamilyApp() {
@@ -312,7 +316,8 @@
 
         function RewardsTab({ user, userData, setErrorState }) {
             const [rewards, setRewards] = useState([]);
-            const { collection, onSnapshot, updateDoc, doc, increment } = window.firebaseModules;
+            // 加入 addDoc
+            const { collection, onSnapshot, updateDoc, doc, increment, addDoc } = window.firebaseModules;
 
             useEffect(() => {
                 const unsub = onSnapshot(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'rewards'), (snap) => {
@@ -327,10 +332,25 @@
                 if (userData.points < reward.cost || !confirm(`兌換 ${reward.title}?`)) return;
                 const inc = increment(-reward.cost);
                 try {
+                    // 1. 扣除點數
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'members', user.uid), { points: inc });
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'users', user.uid, 'profile', 'info'), { points: inc });
+                    
+                    // 2. 寫入兌換紀錄 (Log)
+                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'), {
+                        type: 'redemption',
+                        userId: user.uid,
+                        userName: userData.name,
+                        itemName: reward.title,
+                        cost: reward.cost,
+                        timestamp: new Date().toISOString()
+                    });
+
                     alert("兌換成功！");
-                } catch(e) { if (e.code === 'permission-denied') setErrorState('permission'); else alert("失敗"); }
+                } catch(e) { 
+                    if (e.code === 'permission-denied') setErrorState('permission'); 
+                    else alert("失敗"); 
+                }
             };
 
             return (
