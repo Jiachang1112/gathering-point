@@ -14,8 +14,6 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-100">
@@ -24,7 +22,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const YOUR_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA19wIYO4Bch2dZHEROIgHSU54AurJN5fE",
@@ -55,7 +53,8 @@
         window.db = db;
         window.auth = auth;
         window.appId = appId;
-        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged, query, where, orderBy };
+        // 移除 orderBy，改用 query, where
+        window.firebaseModules = { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, increment, signInWithCustomToken, signInAnonymously, onAuthStateChanged, query, where };
 
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
@@ -72,7 +71,6 @@
             Scan: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M3 7V5a2 2 0 0 1 2-2h2"}), React.createElement("path", {d:"M17 3h2a2 2 0 0 1 2 2v2"}), React.createElement("path", {d:"M21 17v2a2 2 0 0 1-2 2h-2"}), React.createElement("path", {d:"M7 21H5a2 2 0 0 1-2-2v-2"})),
             Users: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("path", {d:"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"}), React.createElement("circle", {cx:"9", cy:"7", r:"4"}), React.createElement("path", {d:"M23 21v-2a4 4 0 0 0-3-3.87"}), React.createElement("path", {d:"M16 3.13a4 4 0 0 1 0 7.75"})),
             ChevronLeft: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("polyline", {points:"15 18 9 12 15 6"})),
-            Clock: ({size=24}) => React.createElement("svg", {width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"}, React.createElement("circle", {cx:"12", cy:"12", r:"10"}), React.createElement("polyline", {points:"12 6 12 12 16 14"})),
         };
 
         const { useState, useEffect } = React;
@@ -251,32 +249,34 @@
             );
         }
 
+        // ★★★ 這裡做了關鍵修改，改用 JS 排序，解決看不到資料的問題 ★★★
         function MemberDetail({ member, onBack }) {
             const [historyLogs, setHistoryLogs] = useState([]);
             const [memberChores, setMemberChores] = useState([]);
-            const { collection, query, where, onSnapshot, orderBy } = window.firebaseModules;
+            const { collection, query, where, onSnapshot } = window.firebaseModules;
 
             useEffect(() => {
-                // Fetch Reward History (Logs)
+                // 1. Fetch Logs (移除 orderBy，改用 JS 排序)
+                // 這樣就不會因為缺索引而報錯
                 const qLogs = query(
                     collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'),
-                    where('userId', '==', member.uid),
-                    orderBy('timestamp', 'desc')
+                    where('userId', '==', member.uid)
                 );
+                
                 const unsubLogs = onSnapshot(qLogs, (snap) => {
-                    setHistoryLogs(snap.docs.map(d => ({id: d.id, ...d.data()})));
-                }, (err) => console.log("Logs permission err (ok if new):", err));
+                    const list = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    // 在這裡進行排序 (新到舊)
+                    list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    setHistoryLogs(list);
+                }, (err) => console.log("Logs error:", err));
 
-                // Fetch Chores related to this user
-                // Firestore filtering limitation: cannot do complex OR queries easily.
-                // We fetch all chores and filter in JS for simplicity in this family app scale.
+                // 2. Fetch Chores (不變)
                 const unsubChores = onSnapshot(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'chores'), (snap) => {
                     const all = snap.docs.map(d => ({id: d.id, ...d.data()}));
                     const related = all.filter(c => 
                         (c.completedByUid === member.uid) || 
                         (c.assignees && c.assignees.some(a => a.uid === member.uid))
                     );
-                    // Sort: Completed last, Pending first
                     related.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
                     setMemberChores(related);
                 });
@@ -545,21 +545,8 @@
                 if (userData.points < reward.cost || !confirm(`測試兌換 ${reward.title}?`)) return;
                 const inc = increment(-reward.cost);
                 try {
-                    // 1. 扣點
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'members', user.uid), { points: inc });
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'users', user.uid, 'profile', 'info'), { points: inc });
-                    
-                    // 2. 新增：寫入兌換紀錄 (Log)
-                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'logs'), {
-                        type: 'redemption',
-                        userId: user.uid,
-                        userName: userData.name,
-                        itemName: reward.title,
-                        cost: reward.cost,
-                        timestamp: new Date().toISOString()
-                    });
-
-                    alert("兌換成功！");
                 } catch(e) { alert("失敗"); }
             };
 
