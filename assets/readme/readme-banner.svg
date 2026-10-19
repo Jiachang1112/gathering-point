@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="450" viewBox="0 0 1280 450" role="img" aria-labelledby="t d">
+  <title id="t">家庭集點通 gathering-point</title>
+  <desc id="d">家庭家事集點系統：家事公佈欄、掃描加點、獎勵兌換與管理員後台</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#431407"/>
+      <stop offset="0.55" stop-color="#c2410c"/>
+      <stop offset="1" stop-color="#fb923c"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" x2="1">
+      <stop offset="0" stop-color="#ea580c"/>
+      <stop offset="0.5" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.4" fill="#ffffff" opacity="0.12"/>
+    </pattern>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#050a1f" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="450" fill="url(#bg)"/>
+  <rect width="1280" height="450" fill="url(#dots)"/>
+  <circle cx="1170" cy="40" r="190" fill="#facc15" opacity="0.35"/>
+  <circle cx="90" cy="430" r="150" fill="#22c55e" opacity="0.25"/>
+  <circle cx="1230" cy="420" r="120" fill="#8b5cf6" opacity="0.28"/>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="56" width="1140" height="338" rx="22" fill="#fdfdfb"/>
+  </g>
+  <rect x="70" y="56" width="1140" height="8" rx="4" fill="url(#bar)"/>
+  <circle cx="106" cy="130" r="7" fill="#e2e5ee"/>
+  <circle cx="106" cy="196" r="7" fill="#e2e5ee"/>
+  <circle cx="106" cy="262" r="7" fill="#e2e5ee"/>
+
+  <rect x="150" y="104" width="358" height="84" rx="6" fill="#ffe56a"/>
+  <text x="162" y="168" font-family="'Noto Serif TC','Noto Serif CJK TC','Songti TC','PMingLiU',serif" font-size="66" font-weight="900" fill="#101a3d">家庭集點通</text>
+
+  <text x="152" y="228" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif" font-size="24" fill="#4a5163">家事公佈欄  ・  掃描加點  ・  獎勵兌換  ・  管理員後台</text>
+
+  <g font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif" font-size="17" font-weight="600">
+    <rect x="152" y="258" width="117" height="40" rx="20" fill="#ea580c"/>
+    <text x="210.5" y="284" text-anchor="middle" fill="#ffffff">🧹 家事板</text>
+    <rect x="283" y="258" width="157" height="40" rx="20" fill="#0b7a5c"/>
+    <text x="361.5" y="284" text-anchor="middle" fill="#ffffff">📷 掃 QR 加點</text>
+    <rect x="454" y="258" width="134" height="40" rx="20" fill="#f59e0b"/>
+    <text x="521.0" y="284" text-anchor="middle" fill="#101a3d">🎁 獎勵兌換</text>
+    <rect x="602" y="258" width="117" height="40" rx="20" fill="#8b5cf6"/>
+    <text x="660.5" y="284" text-anchor="middle" fill="#ffffff">👑 管理員</text>
+  </g>
+  <text x="152" y="350" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif" font-size="18" fill="#7a8194">HTML ‧ Tailwind ‧ React ‧ Firebase　GitHub Pages 靜態網站</text>
+
+  <g transform="translate(878 112)">
+    <path d="M24 108 L135 18 L246 108" fill="none" stroke="#7c2d12" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M48 98 V208 H222 V98 L135 30 Z" fill="#fff7ed" stroke="#7c2d12" stroke-width="6" stroke-linejoin="round"/>
+    <rect x="112" y="150" width="46" height="58" rx="8" fill="#fb923c" stroke="#7c2d12" stroke-width="5"/>
+    <path d="M135 62 l9 18 20 3 -14 14 3 20 -18 -10 -18 10 3 -20 -14 -14 20 -3 z" fill="#facc15" stroke="#854d0e" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="206" cy="176" r="30" fill="#f59e0b" stroke="#7c2d12" stroke-width="5"/><text x="206" y="188" text-anchor="middle" font-family="Arial,sans-serif" font-size="32" font-weight="900" fill="#fff">+1</text>
+  </g>
+</svg>
